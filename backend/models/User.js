@@ -55,17 +55,25 @@ const userSchema = new mongoose.Schema(
 
 // Combined pre-save middleware
 userSchema.pre('save', async function () {
+  // Normalize DOB to UTC midnight
+  if (this.isModified('dateOfBirth')) {
+    const dob = new Date(this.dateOfBirth);
+    dob.setUTCHours(0, 0, 0, 0);
+    this.dateOfBirth = dob;
+  }
+
   // Set profile initial
   if (this.isNew || this.isModified('name')) {
     this.profileInitial = this.name.charAt(0).toUpperCase();
   }
 
-  // Hash password if modified
+  // Hash password
   if (this.isModified('password')) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
   }
 });
+
 
 // Method to compare passwords
 userSchema.methods.comparePassword = async function (candidatePassword) {
@@ -77,12 +85,13 @@ userSchema.methods.isBirthdayToday = function () {
   if (!this.dateOfBirth) return false;
   
   const today = new Date();
-  const dob = new Date(this.dateOfBirth);
-  
-  return (
-    today.getMonth() === dob.getMonth() &&
-    today.getDate() === dob.getDate()
-  );
+const dob = new Date(this.dateOfBirth);
+
+return (
+  today.getUTCMonth() === dob.getUTCMonth() &&
+  today.getUTCDate() === dob.getUTCDate()
+);
+
 };
 
 // Method to get age
@@ -90,13 +99,18 @@ userSchema.methods.getAge = function () {
   if (!this.dateOfBirth) return null;
   
   const today = new Date();
-  const dob = new Date(this.dateOfBirth);
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
+const dob = new Date(this.dateOfBirth);
+
+let age = today.getUTCFullYear() - dob.getUTCFullYear();
+const monthDiff = today.getUTCMonth() - dob.getUTCMonth();
+
+if (
+  monthDiff < 0 ||
+  (monthDiff === 0 && today.getUTCDate() < dob.getUTCDate())
+) {
+  age--;
+}
+
   
   return age;
 };
@@ -120,15 +134,17 @@ userSchema.methods.getPublicProfile = function () {
 // Static method to get today's birthdays
 userSchema.statics.getTodaysBirthdays = async function () {
   const today = new Date();
-  const month = today.getMonth() + 1; // 1-12
-  const day = today.getDate();
+const month = today.getUTCMonth();
+const day = today.getUTCDate();
+
   
   const allUsers = await this.find({ isActive: true }).select('name email role dateOfBirth profileInitial');
   
   const birthdayUsers = allUsers.filter(user => {
     if (!user.dateOfBirth) return false;
     const dob = new Date(user.dateOfBirth);
-    return (dob.getMonth() + 1) === month && dob.getDate() === day;
+    return dob.getUTCMonth() === month && dob.getUTCDate() === day;
+
   });
   
   return birthdayUsers.map(user => ({

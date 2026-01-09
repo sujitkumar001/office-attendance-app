@@ -39,26 +39,30 @@ exports.getUpcomingBirthdays = async (req, res) => {
       const checkDate = new Date(today);
       checkDate.setDate(today.getDate() + i);
       
-      const month = checkDate.getMonth() + 1;
-      const day = checkDate.getDate();
-      
-      allUsers.forEach(user => {
-        if (!user.dateOfBirth) return;
-        const dob = new Date(user.dateOfBirth);
-        
-        if ((dob.getMonth() + 1) === month && dob.getDate() === day) {
-          upcomingBirthdays.push({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            profileInitial: user.profileInitial,
-            dateOfBirth: user.dateOfBirth,
-            daysUntil: i,
-            date: checkDate,
-          });
-        }
-      });
+      const month = checkDate.getUTCMonth();
+const day = checkDate.getUTCDate();
+
+allUsers.forEach(user => {
+  if (!user.dateOfBirth) return;
+  const dob = new Date(user.dateOfBirth);
+  
+  if (
+    dob.getUTCMonth() === month &&
+    dob.getUTCDate() === day
+  ) {
+    upcomingBirthdays.push({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      profileInitial: user.profileInitial,
+      dateOfBirth: user.dateOfBirth,
+      daysUntil: i,
+      date: checkDate,
+    });
+  }
+});
+
     }
     
     res.status(200).json({
